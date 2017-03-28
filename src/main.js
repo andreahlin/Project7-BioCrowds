@@ -17,6 +17,7 @@ var linesArr = [];  // hold the lines that were drawn in the scene
     // owner is an Agent object 
       this.pos = position;
       this.owner = null;
+      this.mesh = null; 
   }
 
   // initialize a plane for the agents to move on 
@@ -60,6 +61,7 @@ var linesArr = [];  // hold the lines that were drawn in the scene
         var n1 = noise1(i, j); 
         var n2 = noise2(i, j);
         var marker = new Marker(new THREE.Vector3(i + n1 * 2, 0, j + n2 * 3.0));
+        marker.owner = null; 
         markerArr.push(marker);  
       }
     }
@@ -74,6 +76,7 @@ var linesArr = [];  // hold the lines that were drawn in the scene
     var material = new THREE.MeshLambertMaterial( {color: 0x9caf82} );
     var cube = new THREE.Mesh(geometry, material);
     cube.position.set(markerArr[i].pos.x, markerArr[i].pos.y - 1, markerArr[i].pos.z);
+    markerArr[i].mesh = cube; 
     theScene.add( cube );
     }
   }
@@ -100,15 +103,22 @@ var linesArr = [];  // hold the lines that were drawn in the scene
     linesArr = []; 
   }
 
+  // remove markers from the scene
+  function clearMarkers(scene) {
+    for (var i = 0; i < markerArr.length; i++) {
+      scene.remove(markerArr[i].mesh);
+    }
+  }
+
   // iterate through agentArr, assign ownership
   function determineOwners(scene, agent) {
-    // set all previous markers to no owner 
+    // set all previous markers to null owner 
     for (var i = 0; i < agent.markers.length; i++) {
-      agent.markers[i].owner == null; 
+      agent.markers[i].owner = null; 
     }
+
     // clear the previous owners 
-    agent.markers = []; 
-    // clear the marker's owner?? ummm yea i mean i guess 
+    agent.markers = [];
 
     // determine the four closest grid cells near agent
     // check all of the markers in the four grid cells
@@ -126,13 +136,15 @@ var linesArr = [];  // hold the lines that were drawn in the scene
           var pos = agent.pos;
           if (pos.distanceTo(markerArr[i].pos) <= ageBub) {
             // set owner of marker
-           // if (markerArr[i].owner == null) {
+            // WHY IS THIS CAUSING PROBLEMS FOR ME? NOT SURE 
+            // console.log(markerArr[i].owner) ;
+            if (!markerArr[i].owner) {
               markerArr[i].owner = agent; 
               agent.markers.push(markerArr[i]); // push the markers onto the arrray 
 
-              // draw the relationshipof marker to agent 
+              // draw the relationship of marker to agent
               drawRelation(scene, agent, markerArr[i]);  
-           // }
+            }
           }
         }
       }
@@ -253,6 +265,7 @@ function onLoad(framework) {
   initField(scene);
 
   // generate and scatter markers 
+  // call it twice..? i mean i guess 
   markerArr = initMarkers(); 
   drawMarkers(scene); 
 
@@ -262,7 +275,7 @@ function onLoad(framework) {
   var testAgent = new Agent(scene);  
   //scene, pos, vel, goal, markers, mesh
   testAgent.pos = new THREE.Vector3(30,0,30);
-  testAgent.vel = 0.5; 
+  testAgent.vel = 0.4; 
   testAgent.goal = new THREE.Vector3(-30,0,-30); // goal is the diagonal
   testAgent.scene = scene; 
   testAgent.markers = [];
@@ -297,28 +310,23 @@ function onLoad(framework) {
     determineOwners(scene, agentArr[i]);
   }
 
-  // Test: draw ownership relation
-  // drawRelation(scene, agentArr[1], markerArr[0]); 
-  // drawRelation(scene, agentArr[0], markerArr[290]); 
-
-  // then update : do the biocrowds function thing or whatever ... lol 
-
 gui.add(camera, 'fov', 0, 180).onChange(function(newVal) {
     camera.updateProjectionMatrix();
   });
-// TODO: add gui functionality so that you can toggle between two different
+// TODO: add gui functionality so that you can toggle between two different states
 }
 
 // called on frame updates
 function onUpdate(framework) {
   var scene = framework.scene;
-  // call redraw function 
+
+  // REDRAW EACH AGENT BASED ON A NEW CALCULATED VELOCITY
   if (agentArr.length != 0) {
       clearLineArr(scene);
       for (var i = 0; i < agentArr.length; i++) {
          // if the goal has already been reached, then don't move
          var dist =  agentArr[i].pos.distanceTo(agentArr[i].goal);
-         if ( dist > 0.2 ) {
+         if ( dist > 0.5 || dist < -0.5 ) {
           // move one agent for now, and update the determineOwners thing 
            moveAgent(scene, agentArr[i]);
            determineOwners(scene, agentArr[i]);
