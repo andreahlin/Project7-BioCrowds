@@ -9,11 +9,8 @@ var dimension = 100; // size of playing field
 var markerArr = [];  // holds the markers 
 var agentArr = [];   // holds the agents 
 var ageBub = 10;     // size of agent bubble
-var cylinder = null;
-var cylinder2 = null; // idk
 var linesArr = [];  // hold the lines that were drawn in the scene 
 
-//----------//----------//----------//----------//----------//----------//----------
   // create a struct for markers 
   function Marker(position) {
     // position is a THREE.vector3
@@ -25,13 +22,10 @@ var linesArr = [];  // hold the lines that were drawn in the scene
   // initialize a plane for the agents to move on 
   function initField(theScene) {
     var planeGeo = new THREE.PlaneBufferGeometry(dimension, dimension, 100, 100);
-    var material = new THREE.MeshBasicMaterial( {color: 0xb0bfff, side: THREE.DoubleSide} );
+    var material = new THREE.MeshBasicMaterial( {color: 0xb9c68f, side: THREE.DoubleSide} );
     var plane = new THREE.Mesh( planeGeo, material );
     plane.rotateX(Math.PI / 2.0) ;
     plane.position.set(0,-2,0);
-    // add in a grid
-    // var gridHelper = new THREE.GridHelper( dimension, dimension);
-    // theScene.add( gridHelper );
     theScene.add( plane );
   }
 
@@ -65,7 +59,7 @@ var linesArr = [];  // hold the lines that were drawn in the scene
         // create a bunch of markers, use noise to displace their position
         var n1 = noise1(i, j); 
         var n2 = noise2(i, j);
-        var marker = new Marker(new THREE.Vector3(i + n1 * 2, 0, j + n2 * 3));
+        var marker = new Marker(new THREE.Vector3(i + n1 * 2, 0, j + n2 * 3.0));
         markerArr.push(marker);  
       }
     }
@@ -77,7 +71,7 @@ var linesArr = [];  // hold the lines that were drawn in the scene
     for (var i = 0; i < markerArr.length; i++) {
       // create a tiny cube for each marker 
     var geometry = new THREE.BoxBufferGeometry( .3, 2, .3 );
-    var material = new THREE.MeshLambertMaterial( {color: 0xc66175} );
+    var material = new THREE.MeshLambertMaterial( {color: 0x9caf82} );
     var cube = new THREE.Mesh(geometry, material);
     cube.position.set(markerArr[i].pos.x, markerArr[i].pos.y - 1, markerArr[i].pos.z);
     theScene.add( cube );
@@ -108,6 +102,10 @@ var linesArr = [];  // hold the lines that were drawn in the scene
 
   // iterate through agentArr, assign ownership
   function determineOwners(scene, agent) {
+    // set all previous markers to no owner 
+    for (var i = 0; i < agent.markers.length; i++) {
+      agent.markers[i].owner == null; 
+    }
     // clear the previous owners 
     agent.markers = []; 
     // clear the marker's owner?? ummm yea i mean i guess 
@@ -129,10 +127,10 @@ var linesArr = [];  // hold the lines that were drawn in the scene
           if (pos.distanceTo(markerArr[i].pos) <= ageBub) {
             // set owner of marker
            // if (markerArr[i].owner == null) {
-              markerArr[i].owner = agent; //DOES THIS SAVE A COPY??? IDK IKD IKD
+              markerArr[i].owner = agent; 
               agent.markers.push(markerArr[i]); // push the markers onto the arrray 
-              // draw the relationship .. for now
-              // WHY ARENT THE RELATIONS BEING REDRAWN???? IDONT KNOWWWWWW?W?W?W?W?W?WW?
+
+              // draw the relationshipof marker to agent 
               drawRelation(scene, agent, markerArr[i]);  
            // }
           }
@@ -143,15 +141,84 @@ var linesArr = [];  // hold the lines that were drawn in the scene
 
   // compute weighted average of marker influences
   // return a vector which is the direction that the 
-  function computeVector() {
-    // idk
-    return null;  
+  function computeVector(scene, agent) {
+    // initialize a temp array, counter, a final velocity 
+    var tempArr = [];
+    var totalW = 0.0; 
+    var tempVel = []; 
+    var finalVel = new THREE.Vector3(0.0,0.0,0.0);  
+
+    // loop through agent's marker array
+    // for each marker, produce w value, push onto temp array
+    // add w to counter
+
+    // IN RELATION TO THE AGENT POS 
+    var vec1 = new THREE.Vector2(agent.goal.x - agent.pos.x, agent.goal.z - agent.pos.z); 
+
+    for (var i = 0; i < agent.markers.length; i++) {
+      var currPos = agent.markers[i].pos;
+      var vec2 = new THREE.Vector2(currPos.x - agent.pos.x, currPos.z - agent.pos.z); 
+
+      // use dot product to find angle... gg 
+      var dot = vec2.dot(vec1);
+      var totLen = vec1.length() * vec2.length(); 
+      var cos = dot / totLen; 
+
+      var w = (1.0 + cos) / (1.0 + vec2.length()); 
+
+      tempArr.push(w); 
+      totalW += w; 
+
+      // looks good up to here !  ha ha ha (': in ur wildest dreamz
+    }
+
+    // then, loop through the marker array again and calculate each individual velocity
+    // add that to total velocity
+    for (var i = 0; i < agent.markers.length; i++) {
+      var currPos = agent.markers[i].pos;
+      var vec2 = new THREE.Vector2(currPos.x - agent.pos.x, currPos.z - agent.pos.z); 
+
+      var scalar = tempArr[i] / totalW; 
+      var currVel = vec2.multiplyScalar(scalar); // this is a vec2
+      var currVel3 = new THREE.Vector3(currVel.x, 0, currVel.y); 
+
+      finalVel = new THREE.Vector3(finalVel.x + currVel3.x,finalVel.y + currVel3.y,finalVel.z + currVel3.z);  
+    }
+
+    // TESTING>.... DRAW THE FINAL VECTOR 
+    // WHERE THE FRICK RU GOING ???Z?Z?Z??Z I DONT GET IT 
+    // why are the velocities consisently getting smaller and smaller until they are nothing? I don't understand
+    // drawVelocity(scene, agent, finalVel); 
+
+    // return the final velocity 
+    return new THREE.Vector3(finalVel.x, finalVel.y, finalVel.z);  
   }
 
-  function moveAgent(agent) { 
-    var displace = -0.1;
-    agent.mesh.translateX(displace);
-    agent.pos = new THREE.Vector3(agent.pos.x + displace, agent.pos.y , agent.pos.z);  
+  // debugging, draw the direction of the velocity for each timestep 
+  function drawVelocity(scene, agent, velocity) {
+        // console.log("position of agent: " + agent.pos.x);
+      var geometry = new THREE.Geometry();
+      geometry.vertices.push(
+        new THREE.Vector3( velocity.x, velocity.y, velocity.z ),
+        new THREE.Vector3( agent.pos.x, agent.pos.y, agent.pos.z )
+      );
+    var material = new THREE.MeshLambertMaterial( {color: 0xb7175a} );
+    var line = new THREE.Line( geometry, material );
+    scene.add( line );
+  }
+
+  function moveAgent(scene, agent) {
+    // use computeVector() to find the displacement
+    var displace = computeVector(scene, agent).multiplyScalar(1.0);
+
+    // normalize the displacement so that it will chill out a bit 
+    displace = displace.normalize().multiplyScalar(agent.vel);
+
+    // change the position of the agent's field
+    agent.pos = agent.pos.add(displace);  
+
+    // update the mesh to be drawn
+    agent.mesh.position.set(agent.pos.x, agent.pos.y, agent.pos.z);
   }
 
 //----------//----------//----------//----------//----------//----------//----------
@@ -179,8 +246,8 @@ function onLoad(framework) {
   scene.add(light);
 
   // axis helper
-  var axisHelper = new THREE.AxisHelper( 30 );
-  scene.add( axisHelper );
+  // var axisHelper = new THREE.AxisHelper( 30 );
+  // scene.add( axisHelper );
 
   // create base plane
   initField(scene);
@@ -193,11 +260,11 @@ function onLoad(framework) {
   // first agent is green, second agent is yellow
   // agent 1 
   var testAgent = new Agent(scene);  
-  testAgent.pos = new THREE.Vector3(20,0,20);
-  testAgent.vel = 7.0; 
-  testAgent.goal = new THREE.Vector3(-20,0,-20); // goal is the diagonal
+  //scene, pos, vel, goal, markers, mesh
+  testAgent.pos = new THREE.Vector3(30,0,30);
+  testAgent.vel = 0.5; 
+  testAgent.goal = new THREE.Vector3(-30,0,-30); // goal is the diagonal
   testAgent.scene = scene; 
-  testAgent.orientation = new THREE.Vector3(0,0,0); // currently origin 
   testAgent.markers = [];
   var geometry = new THREE.CylinderBufferGeometry( 1, 1, 4, 20 );
   var material = new THREE.MeshLambertMaterial( {color: 0x64a89e} );
@@ -211,11 +278,10 @@ function onLoad(framework) {
 
   // agent 2 
   var testAgent2 = new Agent(scene);  
-  testAgent2.pos = new THREE.Vector3(-20,0,-20);
-  testAgent2.vel = 7; 
-  testAgent2.goal = new THREE.Vector3(20,0,20); // goal is the diagonal
+  testAgent2.pos = new THREE.Vector3(-30,0,-30);
+  testAgent2.vel = 0.15; 
+  testAgent2.goal = new THREE.Vector3(30,0,30); // goal is the diagonal
   testAgent2.scene = scene; 
-  testAgent2.orientation = new THREE.Vector3(0,0,0); // currently origin 
   testAgent2.markers = [];
   material = new THREE.MeshLambertMaterial( {color: 0xf7cc7b} );
   var cylinder2 = new THREE.Mesh( geometry, material );
@@ -225,7 +291,6 @@ function onLoad(framework) {
   scene.add( cylinder2 );
   // add agent to the agentArr
   agentArr.push(testAgent2); 
-  console.log("agent array in onload: " + agentArr);
 
   // iterate through all agentArr and call this function.
   for (var i = 0; i < agentArr.length; i++) {
@@ -250,10 +315,16 @@ function onUpdate(framework) {
   // call redraw function 
   if (agentArr.length != 0) {
       clearLineArr(scene);
-      moveAgent(agentArr[0]); 
-      determineOwners(scene, agentArr[0]);
+      for (var i = 0; i < agentArr.length; i++) {
+         // if the goal has already been reached, then don't move
+         var dist =  agentArr[i].pos.distanceTo(agentArr[i].goal);
+         if ( dist > 0.2 ) {
+          // move one agent for now, and update the determineOwners thing 
+           moveAgent(scene, agentArr[i]);
+           determineOwners(scene, agentArr[i]);
+         }
+      }
   }
-
 }
 
 // when the scene is done initializing, it will call onLoad, then on frame updates, call onUpdate
