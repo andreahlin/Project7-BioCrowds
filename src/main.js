@@ -11,6 +11,14 @@ var agentArr = [];   // holds the agents
 var ageBub = 10;     // size of agent bubble
 var linesArr = [];  // hold the lines that were drawn in the scene 
 
+var guiItems = function() {
+  this.scenario = 'Scenario 1';
+  this.markers = true; 
+  this.ownership = true; 
+}
+
+var shouldDrawLines = true; 
+
   // create a struct for markers 
   function Marker(position) {
     // position is a THREE.vector3
@@ -54,9 +62,9 @@ var linesArr = [];  // hold the lines that were drawn in the scene
   // place the markers in the field 
   // returns array of the marker objects 
   function initMarkers() {
-    // how 
-    for (var i = -40; i < 40; i+=4 ) {
-      for (var j = -40; j < 40; j+=4) {
+    // is there anything preventing us from having more markers? no 
+    for (var i = -40; i < 40; i+=3 ) {
+      for (var j = -40; j < 40; j+=3) {
         // create a bunch of markers, use noise to displace their position
         var n1 = noise1(i, j); 
         var n2 = noise2(i, j);
@@ -83,7 +91,6 @@ var linesArr = [];  // hold the lines that were drawn in the scene
 
   // draw a relationship of agent ownership of markers 
   function drawRelation(theScene, agent, marker) {
-    // console.log("position of agent: " + agent.pos.x);
     var geometry = new THREE.Geometry();
     geometry.vertices.push(
       new THREE.Vector3( agent.pos.x, agent.pos.y, agent.pos.z ),
@@ -103,7 +110,17 @@ var linesArr = [];  // hold the lines that were drawn in the scene
     linesArr = []; 
   }
 
+  // remove all of the owners of each marker 
+  function removeMarkerOwners() {
+    for (var i = 0; i < markerArr.length; i++) {
+      if (markerArr[i].owner) {
+        markerArr[i].owner = null; 
+      }
+    }
+  }
+
   // remove markers from the scene
+  // TODO ::  HAVEN'T TESTED THIS YET...  OK 
   function clearMarkers(scene) {
     for (var i = 0; i < markerArr.length; i++) {
       scene.remove(markerArr[i].mesh);
@@ -123,10 +140,10 @@ var linesArr = [];  // hold the lines that were drawn in the scene
     // determine the four closest grid cells near agent
     // check all of the markers in the four grid cells
     // if dist(agent, marker) < agentBubble, then marker.owner = agent. 
-    var xNeg = agent.pos.x - 15; 
-    var xPos = agent.pos.x + 15;
-    var yNeg = agent.pos.y - 10;
-    var yPos = agent.pos.y + 10;
+    var xNeg = agent.pos.x - 10; 
+    var xPos = agent.pos.x + 10;
+    var yNeg = agent.pos.y - 7;
+    var yPos = agent.pos.y + 7;
     // check all markers
     for (var i = 0; i < markerArr.length; i++) {
       // check all markers in the grid
@@ -143,7 +160,9 @@ var linesArr = [];  // hold the lines that were drawn in the scene
               agent.markers.push(markerArr[i]); // push the markers onto the arrray 
 
               // draw the relationship of marker to agent
-              drawRelation(scene, agent, markerArr[i]);  
+              if (shouldDrawLines) {
+                drawRelation(scene, agent, markerArr[i]);  
+              }
             }
           }
         }
@@ -234,6 +253,126 @@ var linesArr = [];  // hold the lines that were drawn in the scene
   }
 
 //----------//----------//----------//----------//----------//----------//----------
+// TWO DIFFERENT SCENARIOS TO TOGGLE BETWEEN 
+
+// simple test scene: two agents with diagonal goals 
+function agentScenario1(scene) {
+  // initialize two agents to begin
+  // first agent is green, second agent is yellow
+  // agent 1 
+  var testAgent = new Agent(scene);  
+  //scene, pos, vel, goal, markers, mesh
+  testAgent.pos = new THREE.Vector3(30,0,30);
+  testAgent.vel = 0.4; 
+  testAgent.goal = new THREE.Vector3(-30,0,-30); // goal is the diagonal
+  testAgent.markers = [];
+  var geometry = new THREE.CylinderBufferGeometry( 1, 1, 4, 20 );
+  var material = new THREE.MeshLambertMaterial( {color: 0x64a89e} );
+  var cylinder = new THREE.Mesh( geometry, material );
+  testAgent.mesh = cylinder; 
+  cylinder.position.set(testAgent.pos.x, testAgent.pos.y, testAgent.pos.z);
+  // draw agent to scene 
+  scene.add( cylinder );
+  // add agent to the agentArr
+  agentArr.push(testAgent); 
+
+  // agent 2 
+  var testAgent2 = new Agent(scene);  
+  testAgent2.pos = new THREE.Vector3(-30,0,-30);
+  testAgent2.vel = 0.15; 
+  testAgent2.goal = new THREE.Vector3(30,0,30); // goal is the diagonal
+  testAgent2.markers = [];
+  material = new THREE.MeshLambertMaterial( {color: 0xf7cc7b} );
+  var cylinder2 = new THREE.Mesh( geometry, material );
+  cylinder2.position.set(testAgent2.pos.x, testAgent2.pos.y, testAgent2.pos.z);
+  testAgent2.mesh = cylinder2; 
+  // draw agent to scene 
+  scene.add( cylinder2 );
+  // add agent to the agentArr
+  agentArr.push(testAgent2); 
+}
+
+// test scene 2: two rows of agents with opposite goals 
+function agentScenario2(scene) {
+  // green agents are faster
+    var geometry = new THREE.CylinderBufferGeometry( 1, 1, 4, 20 );
+    var greenMaterial = new THREE.MeshLambertMaterial( {color: 0x64a89e} );
+    var yellowMaterial = new THREE.MeshLambertMaterial( {color: 0xf7cc7b} );
+
+  for (var i = -40; i < 40; i += 20) {
+    var agent = new Agent(scene);
+    agent.pos = new THREE.Vector3(i,0,40);
+    agent.vel = 0.8; 
+    agent.goal = new THREE.Vector3(i, 0, -40); // goal is on the opposite side
+    agent.markers = [];
+
+    var cylinder = new THREE.Mesh( geometry, greenMaterial );
+    agent.mesh = cylinder; 
+    cylinder.position.set(agent.pos.x, agent.pos.y, agent.pos.z);
+    // draw agent to scene 
+    scene.add( cylinder );
+    // add agent to the agentArr
+    agentArr.push(agent); 
+  }
+
+  for (var i = -40; i < 40; i += 20) {
+    var agent = new Agent(scene);
+    agent.pos = new THREE.Vector3(i,0,-40);
+    agent.vel = 0.5; 
+    agent.goal = new THREE.Vector3(i, 0, 40); // goal is on the opposite side
+    agent.markers = [];
+
+    var cylinder = new THREE.Mesh( geometry, yellowMaterial );
+    agent.mesh = cylinder; 
+    cylinder.position.set(agent.pos.x, agent.pos.y, agent.pos.z);
+    // draw agent to scene 
+    scene.add( cylinder );
+    // add agent to the agentArr
+    agentArr.push(agent); 
+  }
+}
+
+  // test scene 3: four square
+function agentScenario3(scene) {
+  // green agents are faster
+    var geometry = new THREE.CylinderBufferGeometry( 1, 1, 4, 20 );
+    var greenMaterial = new THREE.MeshLambertMaterial( {color: 0x64a89e} );
+    var yellowMaterial = new THREE.MeshLambertMaterial( {color: 0xf7cc7b} );
+
+  for (var i = -30; i <= 30; i += 60) {
+    var agent = new Agent(scene); 
+    agent.pos = new THREE.Vector3(i,0, i / 2.0);
+    agent.vel = 0.5; 
+    agent.goal = new THREE.Vector3(i * -1, 0, 0); // goal is on the opposite side
+    agent.markers = [];
+
+    var cylinder = new THREE.Mesh( geometry, greenMaterial );
+    agent.mesh = cylinder; 
+    cylinder.position.set(agent.pos.x, agent.pos.y, agent.pos.z);
+    // draw agent to scene 
+    scene.add( cylinder );
+    // add agent to the agentArr
+    agentArr.push(agent); 
+  }
+
+  for (var i = -30; i <= 30; i += 60) {
+    var agent = new Agent(scene);
+    agent.pos = new THREE.Vector3(-10,0,i / 1.5);
+    agent.vel = 0.2; 
+    agent.goal = new THREE.Vector3(0, 0, i * -1); // goal is on the opposite side
+    agent.markers = [];
+
+    var cylinder = new THREE.Mesh( geometry, yellowMaterial );
+    agent.mesh = cylinder; 
+    cylinder.position.set(agent.pos.x, agent.pos.y, agent.pos.z);
+    // draw agent to scene 
+    scene.add( cylinder );
+    // add agent to the agentArr
+    agentArr.push(agent); 
+  }
+}
+
+//----------//----------//----------//----------//----------//----------//----------
 
 // called after the scene loads
 function onLoad(framework) {
@@ -257,10 +396,6 @@ function onLoad(framework) {
   var light = new THREE.AmbientLight( 0x404040, 1.8 );
   scene.add(light);
 
-  // axis helper
-  // var axisHelper = new THREE.AxisHelper( 30 );
-  // scene.add( axisHelper );
-
   // create base plane
   initField(scene);
 
@@ -269,51 +404,57 @@ function onLoad(framework) {
   markerArr = initMarkers(); 
   drawMarkers(scene); 
 
-  // initialize two agents to begin
-  // first agent is green, second agent is yellow
-  // agent 1 
-  var testAgent = new Agent(scene);  
-  //scene, pos, vel, goal, markers, mesh
-  testAgent.pos = new THREE.Vector3(30,0,30);
-  testAgent.vel = 0.4; 
-  testAgent.goal = new THREE.Vector3(-30,0,-30); // goal is the diagonal
-  testAgent.scene = scene; 
-  testAgent.markers = [];
-  var geometry = new THREE.CylinderBufferGeometry( 1, 1, 4, 20 );
-  var material = new THREE.MeshLambertMaterial( {color: 0x64a89e} );
-  var cylinder = new THREE.Mesh( geometry, material );
-  testAgent.mesh = cylinder; 
-  cylinder.position.set(testAgent.pos.x, testAgent.pos.y, testAgent.pos.z);
-  // draw agent to scene 
-  scene.add( cylinder );
-  // add agent to the agentArr
-  agentArr.push(testAgent); 
-
-  // agent 2 
-  var testAgent2 = new Agent(scene);  
-  testAgent2.pos = new THREE.Vector3(-30,0,-30);
-  testAgent2.vel = 0.15; 
-  testAgent2.goal = new THREE.Vector3(30,0,30); // goal is the diagonal
-  testAgent2.scene = scene; 
-  testAgent2.markers = [];
-  material = new THREE.MeshLambertMaterial( {color: 0xf7cc7b} );
-  var cylinder2 = new THREE.Mesh( geometry, material );
-  cylinder2.position.set(testAgent2.pos.x, testAgent2.pos.y, testAgent2.pos.z);
-  testAgent2.mesh = cylinder2; 
-  // draw agent to scene 
-  scene.add( cylinder2 );
-  // add agent to the agentArr
-  agentArr.push(testAgent2); 
+  // first, clear agentArr, then call the first scenario
+  agentArr = []; 
+  agentScenario1(scene); 
 
   // iterate through all agentArr and call this function.
   for (var i = 0; i < agentArr.length; i++) {
     determineOwners(scene, agentArr[i]);
   }
 
-gui.add(camera, 'fov', 0, 180).onChange(function(newVal) {
-    camera.updateProjectionMatrix();
+  gui.add(camera, 'fov', 0, 180).onChange(function(newVal) {
+      camera.updateProjectionMatrix();
+    });
+
+  // add gui functionality to toggle between different states
+
+  var items = new guiItems();
+  gui.add(items, 'ownership').onChange(function(newVal) {
+    if (newVal) {
+      shouldDrawLines = true; 
+    } else {
+      shouldDrawLines = false;  
+    }
   });
-// TODO: add gui functionality so that you can toggle between two different states
+
+  gui.add(items, 'markers').onChange(function(newVal) {
+    if (newVal) {
+      drawMarkers(scene);
+    } else {
+      clearMarkers(scene); 
+    }
+  });
+
+  gui.add(items, 'scenario', ['Scenario 1', 'Scenario 2', 'Scenario 3']).onChange(function(newVal) {
+    // clear all the current data
+    for (var i = 0; i < agentArr.length; i++) {
+      var agent = agentArr[i];
+      scene.remove(agent.mesh); 
+    }
+    agentArr = [];
+    clearLineArr(scene); 
+    removeMarkerOwners();
+
+    if (newVal == 'Scenario 1') {
+      agentScenario1(scene);  
+    } else if (newVal == 'Scenario 2') {
+      agentScenario2(scene);  
+    } else {
+      agentScenario3(scene);  
+    }
+  });
+
 }
 
 // called on frame updates
@@ -326,7 +467,7 @@ function onUpdate(framework) {
       for (var i = 0; i < agentArr.length; i++) {
          // if the goal has already been reached, then don't move
          var dist =  agentArr[i].pos.distanceTo(agentArr[i].goal);
-         if ( dist > 0.5 || dist < -0.5 ) {
+         if ( dist > 5.0 || dist < -5.0 ) {
           // move one agent for now, and update the determineOwners thing 
            moveAgent(scene, agentArr[i]);
            determineOwners(scene, agentArr[i]);

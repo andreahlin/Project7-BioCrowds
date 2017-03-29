@@ -10,7 +10,7 @@ export default class Agent {
 		this.goal = new THREE.Vector3(0,0,0);
 		this.scene = scene;
 		this.orientation = 0; // specify in degrees, convert later to radians 
-		this.size = 0; // idk 
+		this.mesh = null; 	
 		this.markers = []; // an array of markers 
 	}
 }
